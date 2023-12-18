@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "ising"
+version = "0.0.0"
+description = "Approximate partition function of Ising model"
+authors = ["Justin Chiu <chiu.justin.t@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+numpy = "*"
+pandas = "*"
+seaborn = "*"
+transformers = "*"
+tenacity = "*"
+torch = "*"
+scipy = "*"
+datasets = "*"
+pyro-ppl = "*"
+pytest = "*"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
