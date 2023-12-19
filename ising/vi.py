@@ -10,8 +10,8 @@ KL[q || p]
 
 This yields a lower bound on the log partition function
 log Z
-= -H[q] - E_q[phi(x)] - KL[q || p]
->= -H[q] - E_q[phi(x)],
+= H[q] + E_q[phi(x)] + KL[q || p]
+>= H[q] + E_q[phi(x)],
 achieved iff q == p (which won't happen due to misspecification)
 """
 import torch
@@ -58,17 +58,17 @@ class InferenceNetwork(torch.nn.Module):
         bias = torch.einsum("i,i,i->", mu, 1-mu, self.W.diag())
         return -quadratic - 2*bias
 
-    def upperbound(self):
+    def lowerbound(self):
         return self.entropy() + self.expected_score()
 
 def fit(model, num_steps=100, lr=1e-2):
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
     for step in range(num_steps):
         optimizer.zero_grad()
-        loss = model.upperbound()
+        loss = -model.lowerbound()
         print(model.entropy().item(), model.expected_score().item())
         loss.backward()
-        print(loss.item())
+        print(-loss.item())
         optimizer.step()
 
 if __name__ == "__main__":
@@ -82,4 +82,5 @@ if __name__ == "__main__":
     fit(model, lr=1e-2, num_steps=200)
 
     print("True", log_Z.item())
-    print("Lowerbound", -model.upperbound().item())
+    print("Lowerbound", model.lowerbound().item())
+    import pdb; pdb.set_trace()
