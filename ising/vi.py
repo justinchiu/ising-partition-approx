@@ -29,44 +29,40 @@ class InferenceNetwork(torch.nn.Module):
     def entropy(self):
         """ Sum of entropies of iid Bernoullis
             H[q] = \sum_i H[q_i]
-            H[q_i] = mu_i \log mu_i + (1-mu_i) \log (1-mu_i)
+            H[q_i] = -(mu_i \log mu_i + (1-mu_i) \log (1-mu_i))
         """
         mu = self.means.sigmoid()
         complement = 1 - mu
         return -(
             (mu * mu.log()).sum()
-            + (complement * complement.log())
-        ).sum()
+            + (complement * complement.log()).sum()
+        )
 
-    def expected_score(self):
+    def expected_potential(self):
         """ E_q[phi(x)]
             = E_q[-x.T @ W @ x]
-            = -\sum_{i,j} E_{xi, xj ~ q}[x[i] * x[j] * W[i,j]]
-            = -\sum_{i,j} E_{xi}[E_{xi | xj}[x[i] * x[j] * W[i,j]]]
-            = -(\sum_{i,j} mu[i] * mu[j] * W[i,j]
-                - \sum_{i=j} mu[i]^2 * W[i,i]
+            = -\sum_{i,j} E_{xi, xj ~ q}[x[i] * x[j]] * W[i,j]
+            = -\sum_{i,j} E_{xi}[E_{xi | xj}[x[i] * x[j]]] * W[i,j]
+            = -(\sum_{i != j} mu[i] * mu[j] * W[i,j]
                 + \sum_{i=j} mu[i] * W[i,i]
                )
-            = -(\sum_{i,j} mu[i] * mu[j] * W[i,j]
-                + \sum_{i=j} mu[i](1-mu[i]) * W[i,i]
-               )
-            = -\sum_{i,j} mu[i] * mu[j] * W[i,j] - 2*\sum_i mu[i] * (1-mu[i]) * W[i,i]
+            = -\sum_{i,j} mu[i] * mu[j] * W[i,j] + \sum_i mu_[i]^2 W[i,i] - \sum_i mu[i] W[i,i]
         """
         mu = self.means.sigmoid()
-        print(mu)
         quadratic = torch.einsum("i,j,ij->", mu, mu, self.W)
-        bias = torch.einsum("i,i,i->", mu, 1-mu, self.W.diag())
-        return -quadratic - 2*bias
+        mean = torch.einsum("i,i->", mu, self.W.diag())
+        bias = torch.einsum("i,i->", mu**2, self.W.diag())
+        return -quadratic - (mean - bias)
 
     def lowerbound(self):
-        return self.entropy() + self.expected_score()
+        return self.entropy() + self.expected_potential()
 
 def fit(model, num_steps=100, lr=1e-2):
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
     for step in range(num_steps):
         optimizer.zero_grad()
         loss = -model.lowerbound()
-        print(model.entropy().item(), model.expected_score().item())
+        print(model.entropy().item(), model.expected_potential().item())
         loss.backward()
         print(-loss.item())
         optimizer.step()
@@ -74,7 +70,7 @@ def fit(model, num_steps=100, lr=1e-2):
 if __name__ == "__main__":
     from ising.model import log_partition
     dim = 4
-    #W = torch.ones(dim, dim)
+    W = torch.ones(dim, dim)
     W = torch.randn(dim, dim)
     log_Z = log_partition(W)
 
@@ -83,4 +79,3 @@ if __name__ == "__main__":
 
     print("True", log_Z.item())
     print("Lowerbound", model.lowerbound().item())
-    import pdb; pdb.set_trace()
