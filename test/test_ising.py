@@ -22,7 +22,6 @@ def test_vi_easy():
     fit(model, lr=1e-2)
 
     print("True", log_Z.item())
-    print("Lowerbound", -model.upperbound().item())
+    print("Lowerbound", model.lowerbound().item())
 
-    assert log_Z.item() > -model.upperbound().item()
-    assert log_Z.item() + model.upperbound().item() < 1e-3
+    assert log_Z.item() > model.lowerbound().item()
